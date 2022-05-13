@@ -8,6 +8,7 @@ Created on Mon Apr  5 17:00:17 2021
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+import colorama
 
 
 ###################################################################################
@@ -30,6 +31,15 @@ import numpy as np
 
 #Il est nécessaire d'avoir le fichier "DonneesRugbyPoidsAgeScore.CSV" dans le même dossier que ce script
 
+def progressBar(progress, total, color=colorama.Fore.YELLOW):
+    percent = 100 * progress / float(total)
+    bar = '█' * int(percent) + '-' * (100 - int(percent))
+    if int(percent) == 100:
+        print(colorama.Fore.GREEN + f'\r|{bar}| {percent:.2f}%')
+        print(colorama.Fore.RESET)
+    else:
+        print(color + f'\r|{bar}| {percent:.2f}%', end='\r')
+    
 #Affichage des échantillons sous un certain angle
 def plot3d(x, y, z, theta, phi):
     fig = plt.figure()
@@ -161,7 +171,9 @@ def pasGoldstein(a0, f, y, u, p, direction, normGrad, beta1, beta2, tau):
 
 #1. Récupération des données des matchs
 try:
+    print('Opening "DonneesRugbyPoidsAgeScore.CSV" : ')
     f = open('DonneesRugbyPoidsAgeScore.CSV', 'r')
+    print("\tDone!\n")
 except FileNotFoundError:
     sys.exit(-1)
     
@@ -186,6 +198,7 @@ dPoids = []
 dAge = []
 score = []
 
+print("Extracting datas : ")
 for line in f:
     line.strip()
     liste = line.split(';')
@@ -196,16 +209,25 @@ for line in f:
     if liste[scoreIndex] != "" and liste[scoreIndex] != "\n" :
         score.append(int((liste[scoreIndex])[:-1]))
 f.close()
+print("\tDone! \n\tFile closed!\n")
 
 #Test de modélisation pour la moitié des échantillons
 """dPoids = dPoids[0:8]
 dAge = dAge[0:8]
 score = score[0:8]"""
 
-#Affichage des échantillons des matchs    
+#Affichage des échantillons des matchs   
+plot3DNumber = 3
+
+print("Plotting datas : ")
+progressBar(0, plot3DNumber)
 plot3d(dPoids, dAge, score, 0, 0)
+progressBar(1, plot3DNumber)
 plot3d(dPoids, dAge, score, 0, -90)
-plot3d(dPoids, dAge, score, 20, -80)    
+progressBar(2, plot3DNumber)
+plot3d(dPoids, dAge, score, 20, -80)
+progressBar(3, plot3DNumber)
+print("\tDone!\n")    
 
 #2. Optimisation du critère (Max de vraisemblance)
 #Initialisation des parametres, de la matrice des entrées et des parametres du gradient
@@ -225,18 +247,23 @@ pas = []
 pasDérivé = 0.000001
 
 #On affiche le critère pour les paramètres initiaux (décalages fixes)
+print("Ploting cost function :")
 plotCritere(vraisemblance, p0, entrees, score)
-
+print('\tDone!\n')
 
 #Test de la fonction de vraisemblance 
-print("Vraisemblance initiale : {}".format(-vraisemblance(score, entrees, p0)))
+print("Vraisemblance initiale : {}\n".format(-vraisemblance(score, entrees, p0)))
 
 parametres = [p0]
 tableauVraisemblances = []
 
 #Affichage de la probabilité avant optimisation
+print("Ploting initial probability surface :")
 plotProba(proba, parametres[-1], dAge, dPoids, score)
+print("\tDone!\n")
 
+print("Performing gradient descent:")
+progressBar(n, nMax)
 #Itérations de la méthode du gradient (Criteres d'arréts: nMax d'itérations, norme du gradient, variation relative du critère)
 while nMax > n and normGradMin < normGrad[-1] and varMin * criterePrec[-1] < var[-1] :
     tableauVraisemblances.append(-vraisemblance(score, entrees, parametres[-1]))
@@ -256,6 +283,9 @@ while nMax > n and normGradMin < normGrad[-1] and varMin * criterePrec[-1] < var
     var.append(np.linalg.norm(vraisemblance(score, entrees, parametres[-1]) - vraisemblance(score, entrees, parametres[-2])))
     criterePrec.append(np.linalg.norm(vraisemblance(score, entrees, parametres[-2])))
     n += 1
+    progressBar(n, nMax)
+progressBar(nMax, nMax)
+print("\tDone!\nDescent finished!\n")
 tableauVraisemblances.append(-vraisemblance(score, entrees, parametres[-1]))
 
 #On force p[2] à être dans R+ (plus pratique pour l'affichage)
@@ -277,6 +307,7 @@ elif varMin * criterePrec[-1] > var[-1]:
 print('La valeur de la vraisemblance apres optimisation est : {}'.format(tableauVraisemblances[-1]))
 
 #Graphiques divers
+print("Ploting maximum likelyhood through iterations :")
 plt.plot(tableauVraisemblances)
 plt.xlabel('Itération')
 plt.ylabel('Vraisemblance')
@@ -286,7 +317,9 @@ plt.xlabel('Itération')
 plt.ylabel('pas')
 plt.yscale('log')
 plt.show()
+print("\tDone!\n")
 
+print("Ploting criterion relative variation :")
 varRelat = [i / j for i, j in zip(var[1:], criterePrec[1:])]
 plt.plot(varRelat)
 plt.xlabel('Itération')
@@ -298,8 +331,11 @@ plt.xlabel('Itération')
 plt.ylabel('Norme du gradient')
 plt.yscale('log')
 plt.show()
+print('\tDone!\n')
 
+print("Ploting final cost function :")
 plotCritere(vraisemblance, parametres[-1], entrees, score)
+print('\tDone!\n')
 
 print("Affichage des probabilités associés à chaque échantillon : ")
 for i in range(len(score)):
