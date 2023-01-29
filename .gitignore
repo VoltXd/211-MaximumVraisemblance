@@ -1,4 +1,4 @@
 #Ignore pdf
-/*.pdf
-/*.rar
-/*.zip
+*.pdf
+*.rar
+*.zip
